@@ -1,0 +1,91 @@
+{% extends 'base_customer_care.html'%}
+{%from 'helper_customer_care.html' import sidebar, shops_nav %}
+{% block body%}
+<div id="all">
+<div id="content">
+    <div class="container-fluid mt-2">
+    <div class="row">
+        <div class="col-md-3">
+        <!--
+        *** CUSTOMER MENU ***
+        _________________________________________________________
+        -->
+        {{sidebar(page='shops')}}
+        <!-- /.col-lg-3-->
+        <!-- *** CUSTOMER MENU END ***-->
+        </div>
+        <div class="col-md-9">
+        <div class="card rounded-0">
+            <div class="card-body">
+                <div class="card rounded-0">
+                    <div class="row card-body">
+                        <div class="col-md-12">  
+                            <input class="form-control form-control-lg" type="text" id="myInput" onkeyup="myFunction()" placeholder="Search for restaurant..">
+                            <small class="form-text text-muted">{{" There are " ~ restuarants|length ~ " registered restaurants/hotels"}}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                <table id="myTable" class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#Id</th>
+                            <th>Restaurant Name</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for restuarant in restuarants %}
+                        <tr>
+                            <td>{{restuarant.id}}</td>
+                            <td>{{restuarant.business_name}}</td>
+                            <td><a href="{{url_for('customer_care.shop_detail', shop_id=restuarant.id, state='all_products')}}" class="btn btn-primary btn-sm">View</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <script>
+                    //my function for searching
+                    function myFunction(){
+                      var input, filter, table, tr, td, i, txtValue;
+                      input = document.getElementById("myInput");
+                      filter = input.value.toUpperCase();
+                      table = document.getElementById("myTable")
+                      tr = table.getElementsByTagName("tr");
+                      for(i=0; i<tr.length;i++){
+                        td = tr[i].getElementsByTagName("td")[1];
+                        if(td){
+                          txtValue = td.textContent || td.innerText;
+                          if(txtValue.toUpperCase().indexOf(filter) > -1){
+                            tr[i].style.display = "";
+                          }else{
+                            tr[i].style.display = "none";
+                          }
+                        }
+                      }
+                    }
+                </script>
+                </div>
+                <div class="pages">
+                    <nav aria-label="Page navigation example" class="d-flex justify-content-center">
+                      <ul class="pagination">
+                        <li class="page-item"><a href="#" aria-label="Previous" class="page-link"><span aria-hidden="true">«</span><span class="sr-only">Previous</span></a></li>
+                        <li class="page-item active"><a href="#" class="page-link">1</a></li>
+                        <li class="page-item"><a href="#" class="page-link">2</a></li>
+                        <li class="page-item"><a href="#" class="page-link">3</a></li>
+                        <li class="page-item"><a href="#" class="page-link">4</a></li>
+                        <li class="page-item"><a href="#" class="page-link">5</a></li>
+                        <li class="page-item"><a href="#" aria-label="Next" class="page-link"><span aria-hidden="true">»</span><span class="sr-only">Next</span></a></li>
+                      </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    </div>
+</div>
+</div>
+{%endblock%}
+
+

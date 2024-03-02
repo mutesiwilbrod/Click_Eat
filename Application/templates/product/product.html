@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div id="body">
+	<div :class="{'d-none':showSpinnerModal}">
+        {% include 'index/loading.html' %}
+    </div>
+	{% include 'index/product-search.html' %}
+    
+    <hr>
+	
+    <div class="container-fluid">
+		<div class="row p-2">
+			<div class="col-md-4">
+                <img class="img-thumbnail product-image bd-placeholder-img card-img-top hover-scale hover-opaque" width="100%" v-bind:src="static+currentProduct.product_picture+'?dummy='+Math.random()" @load="currentProduct.imgLoaded=true" v-show="currentProduct.imgLoaded"/>
+                <div id="imageLoader1" class="skeleton-loader-image" v-show="!currentProduct.imgLoaded"></div> 
+			</div>
+			<div class="col-md-4 p-3">
+				<p class="card-text skeleton-loader">{{'{{currentProduct.name}}'}}</p>
+	            <div v-show="currentProduct.promotional_price">
+                    <small>
+                        <strike class="text-warning">{{'{{currentProduct.actualPrice}}'}} UGX</strike> <span class="text-danger">{{'{{currentProduct.discount}}'}}% OFF</span>
+                    </small>
+                    <p><strong class="skeleton-loader">UGX {{'{{currentProduct.promotionalPrice}}'}} UGX</strong></p>
+	            </div>
+
+                <div v-show="!currentProduct.promotional_price">
+                    <p><strong class="skeleton-loader">UGX {{'{{currentProduct.actualPrice}}'}} UGX</strong></p>
+                </div>
+
+        		<button class="btn btn-primary hover-scale-2" @click="addToCart(currentProduct)">Add to Cart</button>
+			</div>
+
+			<div class="col-md-4 p-2 border bg-light">
+				<p class="card-text"><strong>Description</strong></p>
+	            <p>{{product.description}}</p>
+			</div>
+		</div>
+	</div>
+    
+    <hr>
+
+	{% include 'product/products.html' %}
+</div>
+{% endblock %}
+
+
+{% block vue %}
+<script type="text/javascript">
+    var vue = new Vue({
+        el: '#body',
+        data: {
+        	customer: {
+                id: parseInt('{{current_user.id or 0}}'),
+                contact: '{{current_user.contact}}'
+            },
+            products: [],
+            subCategories: [],
+            product: null,
+            currentProduct: {},
+            cartCount: null,
+            searchString: '',
+            static: "/static/product_images/",
+            spinnerModal: new bootstrap.Modal(document.getElementById('spinnerModal')),
+            loadModal: new bootstrap.Modal(document.getElementById('loadModal')),
+            productsLoaded: false,
+            subCategoriesLoaded: false,
+        },
+        created: function() {
+            this.getProducts()
+            this.getSubCatgories()
+        },
+        computed: {
+            showSpinnerModal(){
+                if (this.productsLoaded && this.subCategoriesLoaded){
+                    this.spinnerModal.hide()
+                    return true
+                }
+                this.spinnerModal.show()
+                return false
+            }
+        },
+        methods: {
+        	setCurrentPrroduct(){
+        		productId = parseInt('{{product.product_id}}')
+        		filter = this.products.filter((product)=>product.product_id==productId)
+        		this.currentProduct = filter[0]
+        	},
+            getProducts(){
+                fetch("/api/v1/home_products?platform=web")
+                .then(r => r.json())
+                .then(data => {
+                    this.products=data.all_products.map((product)=>{
+                        product['imgLoaded'] = false
+                        product['actualPrice'] = Number(product.price).toLocaleString()
+                        product['promotionalPrice'] = Number(product.promotional_price).toLocaleString()
+                        product['discount'] = Math.round((product.price-product.promotional_price)/product.price*100)
+                        return product
+                    })
+                })
+                .then(()=>{
+                    this.productsLoaded = true
+                	this.setCurrentPrroduct()
+                })
+            },
+
+            searchProduct(){
+                this.loadModal.show()
+                fetch(`/api/v1/searched_products?platform=web&searchString=${this.searchString}`)
+                .then(r => r.json())
+                .then(data => {
+                    this.products=data.map((product)=>{
+                        product['imgLoaded'] = false
+                        product['actualPrice'] = Number(product.price).toLocaleString()
+                        product['promotionalPrice'] = Number(product.promotional_price).toLocaleString()
+                        product['discount'] = Math.round((product.price-product.promotional_price)/product.price*100)
+                        return product
+                    })
+                })
+                .then(()=>{
+                    this.productsLoaded = true
+                    this.loadModal.hide()
+                    document.getElementById('products').scrollIntoView({behavior: 'smooth'})
+                })
+            },
+
+            getSubCatgories(){
+                fetch("/api/v1/fetch_all_subcats?platform=web")
+                .then(r => r.json())
+                .then(data => {
+                    this.subCategories = data
+                })
+                .then(()=>{
+                    this.subCategoriesLoaded = true
+                })
+            },
+            addToCart(product, quantity=1, served_with=null){
+                this.loadModal.show()
+                this.product = product
+                if (product.served_with) {
+                    
+                }
+                if (this.customer.id){
+                    data = {
+                        product_id: product.product_id,
+                        customer_id: this.customer.id,
+                        product_name: product.name,
+                        product_image: product.product_picture,
+                        unit_price: product.price,
+                        quantity: quantity,
+                        served_with: served_with,
+                        free_delivery: product.free_delivery,
+                        restaurant: product.resturant,
+                    }
+                    fetch('/api/v1/addToCart?platform=web', {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                    })
+                    .then(response=>response.json())
+                    .then(data=>{
+                        if(data.status=='success'){
+                            this.cartCount = data.data
+                        }
+                        this.loadModal.hide()
+                    })
+                }
+                else{
+                    location.replace("{{url_for('index_bp.signin_signup')}}"+`?next=/product/${product.product_id}`)
+                }
+            },
+
+            updateCartProductQuantity(product, increase=true){
+                product.quantity = increase ? product.quantity+1 : product.quantity-1
+                data = {
+                        "product_id": product.product_id,
+                        "quantity": product.quantity,
+                    }
+                fetch(`/api/v1/cart_operations/${this.customer.id}?platform=web`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response=>response.json())
+                .then(data=>{
+                    if(data.cart_items){
+                        this.cartProducts=data.cart_items.map((product)=>{
+                            product['imgLoaded'] = false
+                            return product
+                        })
+
+                    }
+                })
+            }
+        }
+    });
+</script>
+{% endblock %}
